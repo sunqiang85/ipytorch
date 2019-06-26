@@ -1,0 +1,6 @@
+__include__: abstract.yaml
+exp:
+  dir: logs/mnist/sgd
+optimizer:
+  name: sgd
+  lr: 0.0001
