@@ -1,0 +1,19 @@
+__include__: abstract.yaml
+exp:
+  dir: logs/mnist/sgd
+  resume: True
+optimizer:
+  name: sgd
+  lr: 0.0001
+engine:
+  nb_epochs: 5
+dataset:
+  import: mnist.datasets.mnist
+  name: mnist
+  dir: data/mnist
+  train_split: train
+  eval_split: val
+  nb_threads: 1
+misc:
+  cuda: True
+  seed: 1337

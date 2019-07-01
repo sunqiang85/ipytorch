@@ -109,6 +109,8 @@ def run(path_opts=None):
     device = torch.device("cuda")
     model = net.to(device)
 
+
+
     ## criterion/loss_function
     if options['model']['criterion'].get('import', False):
         criterion_module = importlib.import_module(options['optimizer']['import'])
@@ -134,34 +136,58 @@ def run(path_opts=None):
     elif options['optimizer']['name']=='adam':
         optimizer = optim.Adam(model.parameters(), lr=options['optimizer']['lr'])
 
-
-
     # train
-    results=[]
+    ## train init
+    results = []
+    start_epoch = 0
     best_accuracy_top1 = 0
-    for epoch in range(1, options['engine']['nb_epochs'] + 1):
+
+    ## resume init
+    if options['exp'].get('resume', False):
+        model_path = os.path.join(options['exp']['dir'], 'ckpt_best_accuracy_top1_model.pth')
+        engine_path = os.path.join(options['exp']['dir'], 'ckpt_best_accuracy_top1_engine.pth')
+        optimizer_path = os.path.join(options['exp']['dir'], 'ckpt_best_accuracy_top1_optimizer.pth')
+        model_dict = torch.load(model_path)
+        model.load_state_dict(model_dict)
+        optimizer_dict = torch.load(optimizer_path)
+        optimizer.load_state_dict(optimizer_dict)
+        engine_dict = torch.load(engine_path)
+        start_epoch = engine_dict['epoch']
+        best_accuracy_top1 = engine_dict['accuracy_top1']
+
+
+    for epoch in range(start_epoch + 1, options['engine']['nb_epochs'] + 1):
         train(model=model, device=device, train_loader=train_loader, optimizer=optimizer, lossfunc=criterion, epoch=epoch)
         result = val(model=model, device=device, val_loader=val_loader, lossfunc=criterion, epoch=epoch, topk=topk)
         results.append(result)
+
 
     ## save best checkpoints
         if result['accuracy_top1'] > best_accuracy_top1:
             best_accuracy_top1 = result['accuracy_top1']
             model_path = os.path.join(options['exp']['dir'], 'ckpt_best_accuracy_top1_model.pth')
             engine_path = os.path.join(options['exp']['dir'], 'ckpt_best_accuracy_top1_engine.pth')
+            optimizer_path = os.path.join(options['exp']['dir'], 'ckpt_best_accuracy_top1_optimizer.pth')
             engine_dict = {'epoch':epoch, 'accuracy_top1':best_accuracy_top1}
             torch.save(model.state_dict(), model_path)
             torch.save(engine_dict, engine_path)
+            torch.save(optimizer.state_dict(), optimizer_path)
+
 
 
     ## save evaluate history
-    result_path = os.path.join(options['exp']['dir'], 'result.csv')
-    results_columns = list(results[0].keys())
-    data=[[r[k] for k in results_columns] for r in results]
-    result_df = pd.DataFrame(data,columns=results_columns)
-    print(result_df)
-    result_df.to_csv(result_path)
-
+    if start_epoch < options['engine']['nb_epochs']:
+        result_path = os.path.join(options['exp']['dir'], 'result.csv')
+        results_columns = list(results[0].keys())
+        data=[[r[k] for k in results_columns] for r in results]
+        result_df = pd.DataFrame(data,columns=results_columns)
+        if options['exp'].get('resume', False):
+            pre_result_df = pd.read_csv(result_path)
+            result_df = pd.concat([pre_result_df,result_df], ignore_index=True)
+        print(result_df)
+        result_df.to_csv(result_path, index=False)
+    else:
+        result = val(model=model, device=device, val_loader=val_loader, lossfunc=criterion, epoch=start_epoch, topk=topk)
 
 
 

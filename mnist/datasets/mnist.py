@@ -54,5 +54,6 @@ class dataset(data.Dataset):
             num_workers=self.nb_threads,
             shuffle=self.shuffle,
             pin_memory=self.pin_memory,
+            #pin_memory=True,
             drop_last=False)
         return data_loader
